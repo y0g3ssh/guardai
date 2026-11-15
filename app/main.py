@@ -33,6 +33,8 @@ class CheckResponse(BaseModel):
     ml_score: Optional[float]
     rules: List[str]
     latency_ms: float
+    decoded_from: Optional[str] = None
+    decoded_text: Optional[str] = None
 
 
 @app.get("/health")
