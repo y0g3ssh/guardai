@@ -74,15 +74,14 @@ def _leet_variants(text: str) -> List[Variant]:
     return out
 
 
-def _caesar_variants(text: str) -> List[Variant]:
-    """If the text's letter frequencies fit English far better after a shift, return the shifted text."""
-    text = B64_CHUNK.sub(" ", text)  # base64 blobs are handled elsewhere and would only confuse this check
-    if not 20 <= len(text) <= 2000:
-        return []
-    letters = [c for c in text.lower() if "a" <= c <= "z"]
+def _shift_segment(segment: str):
+    """If this piece of text fits English far better after a Caesar shift, return (shift, shifted_text)."""
+    if not 20 <= len(segment) <= 2000:
+        return None
+    letters = [c for c in segment.lower() if "a" <= c <= "z"]
     n = len(letters)
-    if n < 20 or n / len(text) < 0.6:
-        return []
+    if n < 20 or n / len(segment) < 0.6:
+        return None
     counts = Counter(ord(c) - 97 for c in letters)
 
     def chi2(shift: int) -> float:  # per-letter distance from English; lower means more English-like
@@ -96,12 +95,29 @@ def _caesar_variants(text: str) -> List[Variant]:
     as_written, shifted = chi2(0), chi2(best)
     # Thresholds picked from real shifted sentences (shifted <= 0.75) versus ordinary English (as_written <= 1.3).
     if as_written < 3.0 or shifted > 0.85 or shifted > 0.3 * as_written:
-        return []
+        return None
     table = {}
     for i in range(26):
         table[ord("a") + i] = chr(ord("a") + (i - best) % 26)
         table[ord("A") + i] = chr(ord("A") + (i - best) % 26)
-    return [Variant(f"caesar_shift_{best}", text.translate(table))]
+    return best, segment.translate(table)
+
+
+def _caesar_variants(text: str) -> List[Variant]:
+    """Look for a shifted sentence, either the whole prompt or a piece after a colon or line break
+    (e.g. "Decode this ROT13 message: vtaber nyy ...")."""
+    text = B64_CHUNK.sub(" ", text)  # base64 blobs are handled elsewhere and would only confuse this check
+    whole = _shift_segment(text)
+    if whole:
+        return [Variant(f"caesar_shift_{whole[0]}", whole[1])]
+    parts = re.split(r"([:\n])", text)  # keep the delimiters so the text can be put back together
+    out = []
+    for i in range(0, len(parts), 2):
+        found = _shift_segment(parts[i])
+        if found:
+            rebuilt = parts[:i] + [found[1]] + parts[i + 1:]
+            out.append(Variant(f"caesar_shift_{found[0]}", "".join(rebuilt)))
+    return out[:2]
 
 
 def decode_variants(text: str) -> List[Variant]:
