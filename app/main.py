@@ -11,6 +11,13 @@ from typing import List, Optional
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
+try:  # read GEMINI_API_KEY and the other settings from a local .env file if python-dotenv is installed
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except ImportError:
+    pass
+
 from app.pipeline import GuardPipeline
 
 
@@ -35,11 +42,14 @@ class CheckResponse(BaseModel):
     latency_ms: float
     decoded_from: Optional[str] = None
     decoded_text: Optional[str] = None
+    segment: Optional[str] = None
+    llm: Optional[dict] = None
 
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "ml_model_loaded": app.state.pipeline.ml is not None}
+    pipeline = app.state.pipeline
+    return {"status": "ok", "ml_model_loaded": pipeline.ml is not None, "llm_enabled": pipeline.judge is not None}
 
 
 @app.post("/check", response_model=CheckResponse)

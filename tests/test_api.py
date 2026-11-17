@@ -14,7 +14,7 @@ def client():
 
 def test_health(client):
     body = client.get("/health").json()
-    assert body == {"status": "ok", "ml_model_loaded": False}
+    assert body == {"status": "ok", "ml_model_loaded": False, "llm_enabled": False}
 
 
 def test_check_blocks_an_attack(client):
@@ -36,7 +36,7 @@ def test_check_reports_decoding(client):
 
 def test_response_has_all_expected_fields(client):
     body = client.post("/check", json={"text": "hello"}).json()
-    assert set(body) == {"action", "layer", "ml_score", "rules", "latency_ms", "decoded_from", "decoded_text"}
+    assert set(body) == {"action", "layer", "ml_score", "rules", "latency_ms", "decoded_from", "decoded_text", "segment", "llm"}
 
 
 @pytest.mark.parametrize("payload", [{"text": ""}, {}, {"text": "x" * 10_001}])
